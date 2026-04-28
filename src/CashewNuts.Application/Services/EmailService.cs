@@ -7,28 +7,30 @@ namespace CashewNuts.Application.Services;
 
 public class EmailService
 {
-    private readonly IConfiguration _config;
-    public EmailService(IConfiguration config) => _config = config;
+  private readonly IConfiguration _config;
+  public EmailService(IConfiguration config) => _config = config;
 
-    public async Task SendResetPasswordEmailAsync(string toEmail, string toName, string token)
+  public async Task SendResetPasswordEmailAsync(string toEmail, string toName, string token)
+  {
+    var s = _config.GetSection("EmailSettings");
+    var host = s["Host"]!;
+    var port = int.Parse(s["Port"]!);
+    var from = s["Email"]!;
+    var pass = s["Password"]!;
+    var name = s["DisplayName"]!;
+
+    // var resetLink = $"http://localhost:5173/reset-password?token={token}";
+    var frontendUrl = _config["AppSettings:FrontendUrl"] ?? "http://localhost:5173";
+    var resetLink = $"{frontendUrl}/reset-password?token={token}";
+
+    var message = new MimeMessage();
+    message.From.Add(new MailboxAddress(name, from));
+    message.To.Add(new MailboxAddress(toName, toEmail));
+    message.Subject = "Reset Password — Cashew Nuts System";
+
+    message.Body = new TextPart("html")
     {
-        var s    = _config.GetSection("EmailSettings");
-        var host = s["Host"]!;
-        var port = int.Parse(s["Port"]!);
-        var from = s["Email"]!;
-        var pass = s["Password"]!;
-        var name = s["DisplayName"]!;
-
-        var resetLink = $"http://localhost:5173/reset-password?token={token}";
-
-        var message = new MimeMessage();
-        message.From.Add(new MailboxAddress(name, from));
-        message.To.Add(new MailboxAddress(toName, toEmail));
-        message.Subject = "Reset Password — Cashew Nuts System";
-
-        message.Body = new TextPart("html")
-        {
-            Text = $"""
+      Text = $"""
             <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#f9fafb;border-radius:16px;">
               <div style="text-align:center;margin-bottom:24px;">
                 <span style="font-size:48px;">🥜</span>
@@ -48,12 +50,12 @@ public class EmailService
               </div>
             </div>
             """
-        };
+    };
 
-        using var smtp = new SmtpClient();   // ← now unambiguous
-        await smtp.ConnectAsync(host, port, SecureSocketOptions.StartTls);
-        await smtp.AuthenticateAsync(from, pass);
-        await smtp.SendAsync(message);
-        await smtp.DisconnectAsync(true);
-    }
+    using var smtp = new SmtpClient();   // ← now unambiguous
+    await smtp.ConnectAsync(host, port, SecureSocketOptions.StartTls);
+    await smtp.AuthenticateAsync(from, pass);
+    await smtp.SendAsync(message);
+    await smtp.DisconnectAsync(true);
+  }
 }
